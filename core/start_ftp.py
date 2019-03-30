@@ -8,8 +8,9 @@ from pyftpdlib.servers import FTPServer
 from pathlib import Path
 
 #此处更改用户名和密码和端口（默认21，如有冲突改为2121之类）
-username = "game"
-password = "game"
+main = "game"
+xci = "xci"
+upddlc = "upddlc"
 port = 21
 
 def get_host_ip():
@@ -27,8 +28,19 @@ def startFtp(path):
 	authorizer = DummyAuthorizer()
 
 	#添加用户权限和路径，括号内的参数是(用户名， 密码， 用户目录， 权限)
-	authorizer.add_user(username, password, path, perm='elradfmw')
+	authorizer.add_user(main, main, path, perm='elradfmw')
 
+	#判断是否有xci目录
+	xciPath = path + "\\xci"
+	xciExists=os.path.exists(xciPath) 
+	if xciExists:
+		authorizer.add_user(xci, xci, xciPath, perm='elradfmw')	
+
+	#判断是否有upddlc目录
+	upddlcPath = path + "\\upddlc"
+	upddlcExists=os.path.exists(upddlcPath) 
+	if upddlcExists:
+		authorizer.add_user(upddlc, upddlc, upddlcPath, perm='elradfmw')	
 	#初始化ftp句柄
 	handler = FTPHandler
 	handler.authorizer = authorizer
@@ -40,13 +52,30 @@ def startFtp(path):
 	ip = get_host_ip()
 	#监听ip 和 端口
 	server = FTPServer((ip, port), handler)
-	print("FTP目录：" + path)
+	ftpstr = ",\"ftp://"+main+":"+main+"@"+ip+":"+str(port)+"/\""
+
+	print()
+	print("*********此FTP将会识别是否存在xci或者upddlc文件夹，有则添加其为FTP子目录*******")  
+	print()
 	print("本机地址：" + ip + ":" + str(port))
-	print("用户名：" + username)
-	print("密码：" + password)
-	print("")
+	print("FTP目录(主)：" + path)
+	print("用户名：" + main + "  密码：" + main)
+	print()
+	if xciExists:
+		ftpstr += ",\"ftp://"+xci+":"+xci+"@"+ip+":"+str(port)+"/\""
+		print("FTP目录(XCI)：" + xciPath)
+		print("用户名：" + xci + "  密码：" + xci)
+		print("")
+	if upddlcExists:
+		ftpstr += ",\"ftp://"+upddlc+":"+upddlc+"@"+ip+":"+str(port)+"/\""
+		print("FTP目录(UPD-DLC)：" + upddlcPath)
+		print("用户名：" + upddlc + "  密码：" + upddlc)
+		print()
+	print("Switch端location.conf配置文件中加上下面ftp配置信息：")
+	print(ftpstr)
+	print()
 	print("FTP服务正在运行....关闭窗口即可停止")
-	print("")
+	print()
 	#开始服务
 	server.serve_forever()
 

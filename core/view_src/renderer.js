@@ -17,6 +17,7 @@ const { readFile, writeFile, writeFileIfMissing, execWithPython, execFileWithBat
 
 const {
     ERROR_FLAG,
+    NUT_FOLDER,
     IMAGES_FOLDER,
     CMD_SCRAPE_DELTA,
     CMD_SCAN,
@@ -41,18 +42,32 @@ Vue.filter('formatBytes', function(a, b) {
     return parseFloat((a / Math.pow(c, f)).toFixed(d)) + ' ' + e[f]
 })
 
+var gamesJson = null
+
+var tran = {}
+
+async function readTranJson(path) {
+    try {
+        let t = await readFile(path)
+        tran = eval('(' + t + ')') //JSON.parse(t)
+    } catch (e) {}
+    // return tran
+}
+
 async function loadTitlesNutList() {
     let gamesByID = {}
     let haveBaseCount = 0
+
+    await readTranJson("./view_src/tran_title.json") //读取标题翻译文件
     try {
         let gamesData = await readFile(PATH_ALL_GAMES)
-        let gamesJson = JSON.parse(gamesData)
+        gamesJson = JSON.parse(gamesData)
         let havesData = await readFile(PATH_HAVE_GAMES)
         let havesJson = JSON.parse(havesData)
 
         _.each(gamesJson, function(data, id) {
 
-            let { rightsId, name, region, numberOfPlayers, releaseDate, intro, description, size, publisher, languages, screenshots } = data
+            let { rightsId, name, region, numberOfPlayers, releaseDate, intro, description, size, publisher, languages, screenshots, isDemo } = data
 
             id = _.toLower(id)
             let idUpper = _.toUpper(id)
@@ -64,7 +79,7 @@ async function loadTitlesNutList() {
             basePath = ""
             updPath = ""
             dlcsPath = []
-            releaseDate = releaseDate == null || releaseDate == "" ? "未知":releaseDate
+            releaseDate = releaseDate == null || releaseDate == "" ? "未知" : releaseDate
             //语言列表翻译
             lang_str_array = { "ja": "日语,", "en": "英语,", "es": "西班牙语,", "fr": "法语,", "de": "德语,", "it": "意大利语,", "nl": "荷兰语,", "pt": "葡萄牙语,", "ru": "俄语,", "ko": "韩语,", "zh": "中文," }
             lang_str = ""
@@ -93,13 +108,19 @@ async function loadTitlesNutList() {
                     }
                 });
                 dlcNum = (dlcNum == 0) ? "" : dlcNum
-                _.set(gamesByID, [id], { id, idUpper, rightsId, name, region, numberOfPlayers, releaseDate, intro, description, size, publisher, languages, updVersion, dlcNum, status, basePath, updPath, dlcsPath, ss_num })
+                cn_name = name
+                if (!(tran == "" || tran == null || tran == undefined)) {
+                    var tmp = tran[idUpper]
+                    if (!(tmp == "" || tmp == null || tmp == undefined)) {
+                        cn_name = tmp
+                    }
+                }
+                _.set(gamesByID, [id], { id, idUpper, rightsId, name, cn_name, region, numberOfPlayers, releaseDate, intro, description, size, publisher, languages, updVersion, dlcNum, status, basePath, updPath, dlcsPath, ss_num, isDemo })
             }
         })
 
 
     } catch (e) {
-        console.error(e)
         if (fs.existsSync(PATH_ALL_GAMES)) {
             alert(`${e}\n\n尝试删除 ${PATH_ALL_GAMES} 和确认nut目录是否正确`, `无法读取: ${PATH_ALL_GAMES}`)
         }
@@ -113,6 +134,56 @@ async function loadTitlesNutList() {
     }
     total = Object.keys(gamesByID).length
     return { gamesByID, total, haveBaseCount }
+}
+
+async function saveJsonFile(region) {
+    var filePath = NUT_FOLDER
+    var gamesJsonSave = cloneObjectFn(gamesJson)
+    var saveName = ""
+    switch (region) {
+        case "US":
+            filePath += '/titledb/US.en.json'
+            saveName = "/titles.US.en.json"
+            break;
+        case "HK":
+            filePath += '/titledb/HK.zh.json'
+            saveName = "/titles.HK.zh.json"
+            break;
+        default:
+            return false
+            break;
+    }
+    let regionData = await readFile(filePath)
+    let regionJson = JSON.parse(regionData)
+    //把中文都Unicode化
+    _.each(regionJson, function(data, id) {
+        data.region = region
+        gamesJsonSave[data.id] = data
+    });
+    await writeFileIfMissing(NUT_FOLDER + saveName, '')
+    let folder = _.first(dialog.showOpenDialog({ properties: ['openDirectory'] }))
+    if (!folder) {
+        showLog(newDate(), "info", "取消保存" + saveName)
+        return false
+    }
+    await writeFile(folder + saveName, toUnicode(JSON.stringify(gamesJsonSave, null, 4)))
+    showLog(newDate(), "success", "保存" + saveName + "成功")
+
+}
+
+function toUnicodeFun(data) {
+    if (data == '' || typeof data == 'undefined') return '请输入汉字';
+    var str = '';
+    for (var i = 0; i < data.length; i++) {
+        str += "\\u" + data.charCodeAt(i).toString(16);
+    }
+    return str;
+}
+
+function toUnicode(s) {
+    return s.replace(/([\u3040-\u31FF]|[\u4E00-\u9FA5]|[\uFE30-\uFFA0])/g, function(newStr) {
+        return "\\u" + newStr.charCodeAt(0).toString(16);
+    });
 }
 
 function newDate() {
@@ -142,7 +213,7 @@ async function reloadFiles() {
     data.allGames = gamesByID
     data.total = total
     data.loading = false
-    console.log('reloadfiles')
+    data.filterValue = ["3"] //默认不选择demo
     showLog(newDate(), "success", "加载游戏列表完毕。数据库共有：" + total + "个游戏，本地拥有：" + haveBaseCount + "个。")
 }
 
@@ -156,20 +227,16 @@ async function pickScanDirDialog() {
             data.pathScan = folder
             //扫描前删除旧配置文件
             fs.unlink(PATH_HAVE_GAMES, function(error) {
-                if (error) {
-                    console.log(error);
-                }
+                if (error) {}
             })
             scanDirNut()
         } catch (e) {
-            console.error(e)
             alert('写入Nut配置文件失败${PATH_CONFIG_NUT}')
         }
     }
 }
 
 async function scanDirNut() {
-    console.log('nut scan games')
     let scanFlag = true //仅用于当前读取日志时候的一次性标记
     data.scanFlag = true //扫描过程中不能再次扫描和更换目录
     showLog(newDate(), "info", "正在通过nut扫描游戏目录...扫描时间由游戏量而定。")
@@ -186,7 +253,6 @@ async function scanDirNut() {
                 sum = sum.length != 0 ? sum[0].split("/")[1] : 0
             } catch (e) {
                 sum = 0
-                console.log(e);
             }
             showLog(newDate(), "info", "nut读取数据库文件完成，检索到游戏数量为：" + sum)
             setTimeout(function() { showLog(newDate(), "info", "游戏信息记录中请稍后...") }, 500)
@@ -200,14 +266,13 @@ async function scanDirNut() {
     })
 }
 
-async function startFtp() {
+async function startFtp(path = data.pathScan) {
     data.ftpFlag = true
-    showLog(newDate(), "info", "已启动ftp服务，关闭黑色框即可停止服务。")
-    setTimeout(function() { showLog(newDate(), "warning", "SXInstaller和Tinfoil管理器不支持ftp里的文件夹。") }, 500)
-    let out = await execWithPython(CMD_FTP, false, true, data.pathScan)
+    setTimeout(function() { showLog(newDate(), "info", "已启动ftp服务，关闭黑色框即可停止服务。") }, 100)    
+    setTimeout(function() { showLog(newDate(), "warning", "SXInstaller和Tinfoil管理器不支持ftp里的子目录，除非将子目录作为FTP文件夹才可以。") }, 500)
+    let out = await execWithPython(CMD_FTP, false, true, path)
     showLog(newDate(), "info", "ftp服务已关闭。")
     data.ftpFlag = false
-    console.log('done', out)
 }
 
 async function startNutUSB() {
@@ -216,7 +281,6 @@ async function startNutUSB() {
     let out = await execWithPython(CMD_USB, true, true)
     showLog(newDate(), "info", "nut usb服务已关闭。")
     data.usbFlag = false
-    console.log('done', out)
 }
 
 async function updateNutDB() {
@@ -227,22 +291,18 @@ async function updateNutDB() {
     showLog(newDate(), "info", "nut数据库更新已完成或被关闭，请确认操作即可。")
     data.updDBFlag = false
     setTimeout(function() { scanDirNut() }, 500)
-    console.log('done', out)
 }
 
 async function nutScrapeDeltas() {
     data.dlPicFlag = true
-    console.log('scrape deltas')
     showLog(newDate(), "info", "从E-shop中下载缺失的游戏图片（预计9G大小）请稍后...")
     setTimeout(function() { showLog(newDate(), "warning", "将弹出黑色框进行下载，如无错误，自动关闭后即为下载完成，请保证/nut/titles/images所在硬盘有剩余空间。") }, 500)
     let out = await execWithPython(CMD_SCRAPE_DELTA, true, true)
     data.dlPicFlag = false
-    console.log('done', out)
 }
 
 async function gameInstall(path) {
     data.insGameFlag = true
-    console.log(data.game.id);
     showLog(newDate(), "info", "开始安装" + data.game.id + ":" + data.game.name)
     let out = await execWithPython(CMD_INSTALL_GAME, false, true, '"' + path + '"')
     showLog(newDate(), "info", "安装窗口关闭，请查看NS是否安装成功。")
@@ -330,25 +390,15 @@ function cloneObjectFn(obj) { // 对象复制
     return JSON.parse(JSON.stringify(obj))
 }
 
-var tran = {}
-readTranJson("./view_src/tran_title.json")
-
-async function readTranJson(path) {
-    try {
-        let t = await readFile(path)
-        tran = eval('(' + t + ')') //JSON.parse(t)
-    } catch (e) {
-        console.error(e)
-    }
-    // return tran
-}
-
 let data = {
     errorFlag: ERROR_FLAG,
     octicons: require("octicons"), //图标输出
     imagesFolder: IMAGES_FOLDER,
     allGames: null,
+    startFtpFlag: false,
+    saveJsonVisible: false,
     gameInfoVisible: false,
+    gameNameFlag: true,
     game: {},
     gameInstallVisible: false,
     url: {
@@ -365,8 +415,8 @@ let data = {
     isIndeterminate: false, //全选dlcs时候的不确定值
     sortByKey: 'status',
     sortByDir: 'asc',
-    nowSortName:'status',
-    nowSort: {prop: '', order: ''},
+    nowSortName: 'status',
+    nowSort: { prop: '', order: '' },
     tab: 'history',
     search: "",
     loading: true,
@@ -382,7 +432,8 @@ let data = {
         nutUsb: "启动nut USB服务",
         updNutDB: "更新nut数据库",
         downloadPic: "下载游戏图片",
-        installGameBtn: "安装游戏"
+        installGameBtn: "安装游戏",
+        saveJson: "保存titles.XX.xx.json"
     },
     scanFlag: false,
     dlPicFlag: false,
@@ -390,13 +441,20 @@ let data = {
     usbFlag: false,
     ftpFlag: false,
     insGameFlag: false,
-    history: []
+    history: [],
+    filterOption: [
+        { value: '1', label: '已拥有' },
+        { value: '3', label: '非Demo' },
+        { value: '2', label: 'Demo' },
+    ],
+    filterValue: [],
+    filter: {}
 }
 
 let vm = new Vue({
     el: '#app',
     data,
-    created: function() {
+    created() {
         if (!ERROR_FLAG) {
             reloadFiles()
             this.tab = "games"
@@ -404,54 +462,87 @@ let vm = new Vue({
         }
     },
     computed: {
-        filteredGames: function() {
+        filteredGames() {
             let search = _.toLower(this.search)
-            let results = data.allGames
+            let results = this.allGames
             var re = _.filter(results, game => {
-                return _.includes(_.toLower(game.name), search) || _.includes(_.toLower(game.id), search)
+                return _.includes(_.toLower(game.name), search) || _.includes(_.toLower(game.id), search) || _.includes(_.toLower(game.cn_name), search)
             })
-            data.total = Object.keys(re).length
+            re = _.filter(re, this.filter)
+            this.total = Object.keys(re).length
             return _.orderBy(re, [this.sortByKey], [this.sortByDir])
         },
-        shownGames: function() {
+        shownGames() {
             return (this.filteredGames || []).slice((this.currentPage - 1) * this.pagesize, this.currentPage * this.pagesize)
         },
-        tabGames: function() {
+        tabGames() {
             return this.tab === 'games'
         },
-        tabQueue: function() {
+        tabQueue() {
             return this.tab === 'queue'
         },
-        tabHistory: function() {
+        tabHistory() {
             return this.tab === 'history'
         },
-        tabSettings: function() {
+        tabSettings() {
             return this.tab === 'settings'
         }
     },
+    watch: {
+        filterValue(val) {
+            var filter_tmp = {}
+            val.forEach(function(e, i) {
+                switch (e) {
+                    case "1":
+                        filter_tmp["status"] = "Current"
+                        break;
+                    case "2":
+                        filter_tmp["isDemo"] = true
+                        break;
+                    case "3":
+                        filter_tmp["isDemo"] = false
+                        break;
+                }
+            });
+            this.filter = filter_tmp
+        },
+        total(val) {
+            if (val <= this.currentPage * this.pagesize)
+                this.currentPage = 1
+        }
+    },
     methods: {
-        scanDirNut: function() {
+        scanDirNut() {
             scanDirNut()
         },
-        reloadFiles: function() {
+        reloadFiles() {
             reloadFiles()
         },
-        scrapeDelta: function() {
+        scrapeDelta() {
             nutScrapeDeltas()
         },
-        startFtp: function() {
+        startFtp() {
             startFtp()
         },
-        startNutUSB: function() {
+        startFtpCustom() {
+            let folder = _.first(dialog.showOpenDialog({ properties: ['openDirectory'] }))
+            if (!folder) {
+                showLog(newDate(), "info", "没有选择文件夹，默认路径启动FTP")
+                startFtp()
+                return false
+            }
+            startFtp(folder)
+        },
+        startNutUSB() {
             startNutUSB()
         },
-        updateNutDB: function() {
+        updateNutDB() {
             updateNutDB()
         },
-        pickScanDirDialog: function() {
+        pickScanDirDialog() {
             pickScanDirDialog()
         },
-        showGameInfo: function(game) {
+        showGameInfo(game) {
             //图片地址处理
             imagesFolder = this.imagesFolder + "/"
             imagesIdPath = imagesFolder + game.id
@@ -470,7 +561,7 @@ let vm = new Vue({
             translate2zh(game.description, "description")
             this.gameInfoVisible = true
         },
-        gameInfoClose: function(done) {
+        gameInfoClose(done) {
             this.url = {
                 "url": {
                     bannerUrl: "",
@@ -481,49 +572,52 @@ let vm = new Vue({
             done()
         },
         // tab页面控制
-        setTab: function(tab) {
+        setTab(tab) {
             this.tab = tab.name
         },
-        tableRowClassName: function({ row, rowindex }) {
+        tableRowClassName({ row, rowindex }) {
             if (row.status == "Current") return 'success-row';
         },
         // 分页控制
-        handleCurrentChange: function(currentPage) {
+        handleCurrentChange(currentPage) {
             this.currentPage = currentPage
         },
-        handleSizeChange: function(pagesize) {
+        handleSizeChange(pagesize) {
             this.pagesize = pagesize
         },
         // 游戏数据排序
-        sortChange: function({ prop, order }) {
+        sortChange({ prop, order }) {
             data.sortByKey = prop == null ? "status" : prop
             data.sortByDir = order == null ? "asc" : order == "ascending" ? "asc" : "desc"
-            data.nowSort = {prop: data.sortByKey , order: order}
+            data.nowSort = { prop: data.sortByKey, order: order }
         },
-        sortChangeGrid: function(prop) {
-          let order = "ascending"
-          if (this.nowSort.prop==prop && this.nowSort.order == order) 
-            order = 'descending'
-          console.log(this.nowSort)
-          this.$refs.gamesTable.clearSort()
-          this.$refs.gamesTable.sort(prop, order)
-          data.nowSort = {prop: prop, order: order}
-          this.sortChange({prop: prop, order: order})
+        sortChangeGrid(prop) {
+            let order = "ascending"
+            if (this.nowSort.prop == prop && this.nowSort.order == order)
+                order = 'descending'
+            this.$refs.gamesTable.clearSort()
+            this.$refs.gamesTable.sort(prop, order)
+            data.nowSort = { prop: prop, order: order }
+            this.sortChange({ prop: prop, order: order })
         },
         // 安装游戏的对话框
-        showGameInstallDialog: function(game) {
+        showGameInstallDialog(game) {
             this.game = cloneObjectFn(game)
             this.gameInstallVisible = true
         },
         // 安装游戏按钮
-        gameInstall: function() {
+        gameInstall() {
             let installNum = 0
             let path = this.installGame
             let inPath = ""
-            if (path.basePath != "") { installNum += 1;
-                inPath += path.basePath + "###" }
-            if (path.updPath != "") { installNum += 1;
-                inPath += path.updPath + "###" }
+            if (path.basePath != "") {
+                installNum += 1;
+                inPath += path.basePath + "###"
+            }
+            if (path.updPath != "") {
+                installNum += 1;
+                inPath += path.updPath + "###"
+            }
             installNum += path.dlcsPath.length
             path.dlcsPath.forEach(function(e, i) {
                 inPath += e + "###"
@@ -556,6 +650,9 @@ let vm = new Vue({
             let checkedCount = value.length
             this.checkAllDlcs = checkedCount === this.game.dlcsPath.length;
             this.isIndeterminate = checkedCount > 0 && checkedCount < this.game.dlcsPath.length;
+        },
+        saveJsonFile(region) {
+            saveJsonFile(region)
         }
     }
 })

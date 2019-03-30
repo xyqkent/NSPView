@@ -11,8 +11,25 @@ html{
 }
 
 /*复写*/
-.el-button-group .el-button{
+.buttons .el-button{
     padding:5px 15px;
+}
+
+.buttons .el-btn-g > span{
+    float: left;
+}
+.buttons .el-btn-g > span .el-button{
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-right: -1px;
+}
+.history_badge{
+    position: absolute;
+    top: 1px;
+    left: 139px;
+    z-index: 10;
+    width: 27px;
+    text-align: right;
 }
 
 .text-center{

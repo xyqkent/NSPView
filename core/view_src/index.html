@@ -13,12 +13,12 @@
 
 <body>
     <div id="app">
-        <el-tabs v-model="activeName" type="border-card" @tab-click="setTab" v-if="!errorFlag">
+        <el-tabs v-model="activeName" type="border-card" @tab-click="setTab" v-if="!errorFlag" ref="history11">
             <el-tab-pane label="游戏" name="games">
                 <transition name="el-zoom-in-top">
                     <div v-show="tabGames">
                         <el-row>
-                            <el-col :span="18">
+                            <el-col :span="10" class="buttons">
                                 <el-button-group>
                                     <el-button v-tip.bottom="tooltip.reload" type="primary" :disabled="scanFlag||updDBFlag" v-on:click="scanDirNut" v-html="octicons['sync'].toSVG({'width':20})">
                                     </el-button>
@@ -26,24 +26,50 @@
                                     </el-button>
                                     <el-button v-tip.bottom="tooltip.changeView" v-else type="primary" v-on:click="showGamesAsTable = !showGamesAsTable" v-html="octicons['list-unordered'].toSVG({'width':20})">
                                     </el-button>
-                                    <el-button v-tip.bottom="tooltip.ftp" type="primary" :disabled="ftpFlag" v-on:click="startFtp" v-html="octicons['globe'].toSVG({'width':24})" style="padding: 5px 13px;">
-                                    </el-button>
+                                </el-button-group>
+                                <el-button-group class="el-btn-g">
+                                    <el-popover placement="bottom" width="260" v-model="startFtpFlag" title="启动FTP服务器" trigger="hover">
+                                        <span>默认路径：{{pathScan}}</span>
+                                        <div style="text-align: right; margin-top: 10px;">
+                                            <el-button size="mini" type="warning" @click="startFtpCustom">自定义路径</el-button>
+                                            <el-button type="primary" size="mini" @click="startFtp">默认</el-button>
+                                        </div>
+                                        <el-button type="primary" slot="reference" :disabled="ftpFlag" v-html="octicons['globe'].toSVG({'width':24})" style="padding: 5px 13px;">
+                                        </el-button>
+                                    </el-popover>
                                     <el-button v-tip.bottom="tooltip.nutUsb" type="primary" :disabled="scanFlag||usbFlag||updDBFlag" v-on:click="startNutUSB" v-html="octicons['server'].toSVG({'width':20})">
                                     </el-button>
+                                </el-button-group>
+                                <el-button-group>
                                     <el-button v-tip.bottom="tooltip.updNutDB" type="primary" :disabled="scanFlag||updDBFlag" v-on:click="updateNutDB" v-html="octicons['cloud-download'].toSVG({'width':27})" style="padding: 5px 11.5px;">
                                     </el-button>
                                     <el-button v-tip.bottom="tooltip.downloadPic" type="primary" :disabled="dlPicFlag" v-on:click="scrapeDelta" v-html="octicons['desktop-download'].toSVG({'width':25})" style="padding: 6px 12.5px;">
                                     </el-button>
                                 </el-button-group>
+                                <el-button-group>
+                                    <el-popover placement="bottom" width="260" v-model="saveJsonVisible" title="请选择保存的json" trigger="hover">
+                                        <div style="text-align: right; margin: 0">
+                                            <el-button size="mini" type="primary" @click="saveJsonFile('HK')">titles.HK.zh.json</el-button>
+                                            <el-button type="primary" size="mini" @click="saveJsonFile('US')">titles.US.en.json</el-button>
+                                        </div>
+                                        <el-button type="primary" slot="reference" :disabled="scanFlag||updDBFlag" v-html="octicons['gist'].toSVG({'width':20})">
+                                        </el-button>
+                                    </el-popover>
+                                </el-button-group>
                             </el-col>
-                            <el-col :span="6">
-                                <el-input v-model="search" placeholder="搜索"></el-input>
+                            <el-col :span="14" style="text-align: right;">
+                                <el-button style="" type="primary" v-on:click="gameNameFlag=!gameNameFlag">标题中英切换</el-button>
+                                <el-input style="width:200px;" v-model="search" placeholder="搜索"></el-input>
+                                <el-select style="width:200px;" v-model="filterValue" multiple placeholder="筛选游戏">
+                                    <el-option v-for="item in filterOption" :key="item.value" :label="item.label" :value="item.value">
+                                    </el-option>
+                                </el-select>
                             </el-col>
                         </el-row>
                         <transition name="slide-fade">
                             <div v-show="showGamesAsTable">
                                 <template>
-                                    <el-table v-loading="loading" :default-sort = "{prop: 'status', order: 'ascending'}" @sort-change="sortChange" :data="shownGames" :row-class-name="tableRowClassName" ref="gamesTable" height="600" style="width: 100%">
+                                    <el-table v-loading="loading" :default-sort="{prop: 'status', order: 'ascending'}" @sort-change="sortChange" :data="shownGames" :row-class-name="tableRowClassName" ref="gamesTable" height="600" style="width: 100%">
                                         <el-table-column sortable="custom" :sort-orders="['ascending', 'descending']" align="center" prop="status" label="状态" width=80>
                                             <template slot-scope="scope">
                                                 <span v-if="scope.row.status=='Current'" v-html="octicons['check'].toSVG({'width':18})"></span>
@@ -52,10 +78,10 @@
                                         </el-table-column>
                                         <el-table-column sortable="custom" :sort-orders="['ascending', 'descending']" prop="idUpper" label="TitleID" width=180>
                                         </el-table-column>
-                                        <el-table-column show-overflow-tooltip sortable="custom" :sort-orders="['ascending', 'descending']" prop="name" label="名称">
+                                        <el-table-column show-overflow-tooltip sortable="custom" :sort-orders="['ascending', 'descending']" prop="name" :label="gameNameFlag?'名称 (中)':'名称 (英)'">
                                             <template slot-scope="scope">
                                                 <div class="clickable" @click="showGameInfo(scope.row)">
-                                                    {{scope.row.name}}
+                                                    {{gameNameFlag?scope.row.cn_name:scope.row.name}}
                                                     <span v-if="scope.row.region">({{scope.row.region}})</span>
                                                 </div>
                                             </template>
@@ -284,6 +310,9 @@
                 </el-timeline-item>
             </el-timeline>
         </div>
+        <!-- 历史记录的角标 -->
+        <el-badge :value="history.length!=0?history.length:''" class="history_badge" type="primary">
+        </el-badge>
     </div>
     <script>
     require('./renderer.js')
