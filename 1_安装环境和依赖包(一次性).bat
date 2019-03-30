@@ -1,5 +1,5 @@
 @ECHO OFF
-REM 声明采用UTF-8编码A
+REM 声明采用UTF-8编码
 chcp 65001
 ECHO 下载一些必要文件到/core/node_modules ...
 ECHO.
