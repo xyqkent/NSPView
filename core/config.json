@@ -1,0 +1,12 @@
+{
+	"NUT_FOLDER": "../nut/",
+    "IMAGES_FOLDER": "../../nut/titles/images",
+    "NEW_CMD": "start /wait cmd /k",
+    "PYTHON_CMD": "py -3",
+    "CMD_SCRAPE_DELTA": "nut.py --scrape-delta",
+    "CMD_SCAN": "nut.py --scan",
+    "CMD_USB": "nut.py --usb",
+    "CMD_FTP": "start_ftp.py",
+    "CMD_UPDATE_NUTDB": "update_nutdb.py",
+    "CMD_INSTALL_GAME": "usb_install_pc.py"
+}

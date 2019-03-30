@@ -1,0 +1,158 @@
+body{
+    overflow-x: hidden;
+}
+
+html{
+    height:unset;
+}
+
+.hidden {
+    display: none;
+}
+
+/*复写*/
+.el-button-group .el-button{
+    padding:5px 15px;
+}
+
+.text-center{
+    text-align:center;
+}
+.no-button-right-gap button:first-child {
+    margin-right: 0;
+}
+.history-alert{
+    list-style-type: none;
+    padding: 0;
+}
+.history-alert li{
+    margin-top: 5px;
+}
+
+.game-grid-row {
+    position:absolute;
+    top:70px;
+    left:0;
+    width: 100%;
+}
+
+.game-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: flex-start;
+    height: 540px;
+    overflow-y: auto;
+}
+
+.line {
+    height: 1px;
+    background-color: #e0e6ed;
+    margin-top:10px;;
+}
+
+.game-grid-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 256px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.game-grid-box {
+    position: relative;
+    margin: 3px;
+    background-color: #e3e3e3;
+    height:264px;
+    width:264px;
+
+}
+
+.game-grid-box-image{
+    position: relative;
+    width: 256px;
+    height: 256px;
+    margin: 4px;
+    background-repeat: no-repeat;
+    background-size:cover;
+    cursor:pointer;    
+}
+
+.game-grid-box.Current{
+    background-color: #62bb31;
+}
+
+.game-grid-box .game-name{
+    position: absolute;
+    right: 0;
+    left: 0;
+    bottom: 17px;
+    font-size:15px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.70);
+    text-align: center;
+    font-weight: bold;
+}
+
+.game-grid-box .game-upddlcs{
+    position: absolute;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    height: 17px;
+    font-size:13px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.70);
+    text-align: center;
+    font-weight: bold;
+}
+
+.game-grid-box .game-players{
+    position: absolute;
+    right: 0;
+    top: 0;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    padding: 0 3px;
+    z-index: 10;
+}
+
+.game-grid-box .game-grid-box-hidable{
+    visibility: hidden;
+}
+
+.game-grid-box:hover .game-grid-box-hidable{
+    visibility: visible;
+}
+
+.octicon {
+    display: inline-block;
+    vertical-align: text-top;
+    fill: currentColor;
+}
+.clickable{
+	cursor:pointer;
+}
+
+.installdialog strong{
+    line-height:40px;
+    font-size:14px;
+}
+
+.slide-fade-enter-active {
+  animation: bounce-in .3s;
+}
+.slide-fade-leave-active {
+  animation: bounce-in .3s reverse;
+}
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

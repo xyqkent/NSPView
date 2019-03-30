@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../node_modules/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="../node_modules/element-ui/lib/theme-chalk/base.css">
+    <link rel="stylesheet" href="../node_modules/vtip/lib/index.min.css">
+    <link rel="stylesheet" href="style/docs.css">
+    <link rel="stylesheet" href="style/style.css">
+    <link rel="stylesheet" href="style/popup.css">
+</head>
+
+<body>
+    <div id="app">
+        <el-tabs v-model="activeName" type="border-card" @tab-click="setTab" v-if="!errorFlag">
+            <el-tab-pane label="游戏" name="games">
+                <transition name="el-zoom-in-top">
+                    <div v-show="tabGames">
+                        <el-row>
+                            <el-col :span="18">
+                                <el-button-group>
+                                    <el-button v-tip.bottom="tooltip.reload" type="primary" :disabled="scanFlag||updDBFlag" v-on:click="scanDirNut" v-html="octicons['sync'].toSVG({'width':20})">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.changeView" v-if="showGamesAsTable" type="primary" v-on:click="showGamesAsTable = !showGamesAsTable" v-html="octicons['file-media'].toSVG({'width':20})">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.changeView" v-else type="primary" v-on:click="showGamesAsTable = !showGamesAsTable" v-html="octicons['list-unordered'].toSVG({'width':20})">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.ftp" type="primary" :disabled="ftpFlag" v-on:click="startFtp" v-html="octicons['globe'].toSVG({'width':24})" style="padding: 5px 13px;">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.nutUsb" type="primary" :disabled="scanFlag||usbFlag||updDBFlag" v-on:click="startNutUSB" v-html="octicons['server'].toSVG({'width':20})">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.updNutDB" type="primary" :disabled="scanFlag||updDBFlag" v-on:click="updateNutDB" v-html="octicons['cloud-download'].toSVG({'width':27})" style="padding: 5px 11.5px;">
+                                    </el-button>
+                                    <el-button v-tip.bottom="tooltip.downloadPic" type="primary" :disabled="dlPicFlag" v-on:click="scrapeDelta" v-html="octicons['desktop-download'].toSVG({'width':25})" style="padding: 6px 12.5px;">
+                                    </el-button>
+                                </el-button-group>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-input v-model="search" placeholder="搜索"></el-input>
+                            </el-col>
+                        </el-row>
+                        <transition name="slide-fade">
+                            <div v-show="showGamesAsTable">
+                                <template>
+                                    <el-table v-loading="loading" :default-sort = "{prop: 'status', order: 'ascending'}" @sort-change="sortChange" :data="shownGames" :row-class-name="tableRowClassName" ref="gamesTable" height="600" style="width: 100%">
+                                        <el-table-column sortable="custom" :sort-orders="['ascending', 'descending']" align="center" prop="status" label="状态" width=80>
+                                            <template slot-scope="scope">
+                                                <span v-if="scope.row.status=='Current'" v-html="octicons['check'].toSVG({'width':18})"></span>
+                                                <span v-if="scope.row.status=='Miss'" v-html="octicons['x'].toSVG({'width':18})"></span>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column sortable="custom" :sort-orders="['ascending', 'descending']" prop="idUpper" label="TitleID" width=180>
+                                        </el-table-column>
+                                        <el-table-column show-overflow-tooltip sortable="custom" :sort-orders="['ascending', 'descending']" prop="name" label="名称">
+                                            <template slot-scope="scope">
+                                                <div class="clickable" @click="showGameInfo(scope.row)">
+                                                    {{scope.row.name}}
+                                                    <span v-if="scope.row.region">({{scope.row.region}})</span>
+                                                </div>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column align="center" prop="numberOfPlayers" label="玩家人数" width=130>
+                                        </el-table-column>
+                                        <el-table-column align="center" prop="releaseDate" label="发布日期" width=130 sortable="custom" :sort-orders="['ascending', 'descending']">
+                                        </el-table-column>
+                                        <el-table-column align="center" prop="updVersion" label="升级包版本" width=130>
+                                        </el-table-column>
+                                        <el-table-column align="center" prop="dlcNum" label="DLC" width=130>
+                                        </el-table-column>
+                                        <el-table-column align="center" prop="" label="功能" width=100>
+                                            <template slot-scope="scope">
+                                                <div class="clickable" style="width: 20px;margin: auto;" v-tip.left="tooltip.installGameBtn" v-on:click="showGameInstallDialog(scope.row)" v-html="octicons['diff-added'].toSVG({'width':20})">
+                                                </div>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                                </template>
+                                <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="[10, 20, 30, 40]" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
+                                </el-pagination>
+                            </div>
+                        </transition>
+                        <transition name="slide-fade">
+                            <div v-show="!showGamesAsTable" class="game-grid-row">
+                                <el-row>
+                                    <el-col :span="3">
+                                        <el-menu :default-active="nowSort.prop" @select="sortChangeGrid" class="el-menu-vertical">
+                                            <el-menu-item index="status">
+                                                <i :class="nowSort.prop=='status'?nowSort.order=='ascending'?'el-icon-caret-top':'el-icon-caret-bottom':'el-icon-minus'"></i>
+                                                <span slot="title">状态</span>
+                                            </el-menu-item>
+                                            <el-menu-item index="name">
+                                                <i :class="nowSort.prop=='name'?nowSort.order=='ascending'?'el-icon-caret-top':'el-icon-caret-bottom':'el-icon-minus'"></i>
+                                                <span slot="title">名称</span>
+                                            </el-menu-item>
+                                            <el-menu-item index="idUpper">
+                                                <i :class="nowSort.prop=='idUpper'?nowSort.order=='ascending'?'el-icon-caret-top':'el-icon-caret-bottom':'el-icon-minus'"></i>
+                                                <span slot="title">TitleID</span>
+                                            </el-menu-item>
+                                            <el-menu-item index="releaseDate">
+                                                <i :class="nowSort.prop=='releaseDate'?nowSort.order=='ascending'?'el-icon-caret-top':'el-icon-caret-bottom':'el-icon-minus'"></i>
+                                                <span slot="title">发布日期</span>
+                                            </el-menu-item>
+                                        </el-menu>
+                                    </el-col>
+                                    <el-col :span="21">
+                                        <div class="game-grid">
+                                            <div v-for="game in shownGames" class="game-grid-box" :class="game.status">
+                                                <div class="game-grid-box-image" :style="`background-image: url('${imagesFolder}/${game.idUpper}/icon.jpg'),url('assets/blank.jpg')`" @click="showGameInfo(game)">
+                                                    <div class="game-players game-grid-box-hidable" v-if="game.numberOfPlayers > 0">
+                                                        {{game.numberOfPlayers}}P
+                                                    </div>
+                                                    <div class="game-name game-grid-box-hidable" @click="showGameInfo(game)">
+                                                        <span>
+                                                            {{game.name}}<span v-if="game.region"> ({{game.region}})</span>
+                                                        </span>
+                                                    </div>
+                                                    <div class="game-upddlcs game-grid-box-hidable" @click="showGameInfo(game)">
+                                                        <span style="float:left">
+                                                            &nbsp;&nbsp;版本：<span v-if="game.updVersion">{{game.updVersion}}</span>
+                                                            <span v-else>无</span>
+                                                        </span>
+                                                        <span style="float:right">
+                                                            DLC数量：<span v-if="game.dlcNum">{{game.dlcNum}}</span>
+                                                            <span v-else>0&nbsp;&nbsp;</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="game-grid-btn game-grid-box-hidable">
+                                                    <div class="clickable" style="color:#fff;padding: 0 2px;float: left" v-tip.bottom="tooltip.installGameBtn" v-on:click="showGameInstallDialog(game)" v-html="octicons['diff-added'].toSVG({'width':25})">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="line"></div>
+                                    </el-col>
+                                </el-row>
+                                <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="[10, 20, 30, 40]" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
+                                </el-pagination>
+                            </div>
+                        </transition>
+                        <div v-if="!showGamesAsTable" style="height:612px">
+                        </div>
+                    </div>
+                </transition>
+            </el-tab-pane>
+            <el-tab-pane label="历史记录" name="history">
+                <transition name="el-zoom-in-top">
+                    <div v-show="tabHistory">
+                        <div class="text-center" v-if="history.length > 0">
+                            <el-button type="info" v-on:click="history = []" v-html="octicons['trashcan'].toSVG({'width':20})">清除历史记录</el-button>
+                        </div>
+                        <template>
+                            <ul class="history-alert">
+                                <li v-for="item in history">
+                                    <el-alert :title="item.title" :type="item.type" :description="item.description" show-icon>
+                                    </el-alert>
+                                </li>
+                            </ul>
+                        </template>
+                    </div>
+                </transition>
+            </el-tab-pane>
+            <el-tab-pane label="设置" name="settings">
+                <transition name="el-zoom-in-top">
+                    <div v-show="tabSettings">
+                        <el-row>
+                            <el-col :span="24">
+                                <el-input placeholder="请输入目录地址" v-model="pathScan" :disabled="true">
+                                    <template slot="prepend">Nut扫描目录</template>
+                                    <el-button type="primary" slot="append" v-on:click="pickScanDirDialog" :disabled="scanFlag">更改</el-button>
+                                </el-input>
+                                <p>很多设定都放在了config.json，不过一般都不需要改动。</p>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </transition>
+            </el-tab-pane>
+        </el-tabs>
+        <div class="infodialog">
+            <el-dialog :visible.sync="gameInfoVisible" top="10vh" width="90%" :before-close="gameInfoClose">
+                <div :style="url.bannerUrl">
+                    <div class="gameInfoBackground">
+                        <header>
+                            <div class="icondiv">
+                                <img class="icon" :src="url.icon" onerror="this.src='assets/blank.jpg';this.onerror=null'">
+                            </div>
+                            <ul>
+                                <li class="title">
+                                    <span class="clickable" style="color:#f00" v-tip.bottom="tooltip.installGameBtn" v-on:click="showGameInstallDialog(game)" v-html="octicons['diff-added'].toSVG({'width':20})">
+                                    </span>
+                                    {{game.name}}
+                                </li>
+                                <li><label>TitleID |</label>
+                                    <div>{{game.idUpper}}</div>
+                                </li>
+                                <li><label>发布者 |</label>
+                                    <div>{{game.publisher}}</div>
+                                </li>
+                                <li><label>发布日期 |</label>
+                                    <div>{{game.releaseDate}}</div>
+                                </li>
+                                <li><label>大小 |</label>
+                                    <div>{{game.size | formatBytes}}</div>
+                                </li>
+                                <li><label>语言 |</label>
+                                    <div>{{game.languages}}</div>
+                                </li>
+                                <li><label>简介 |</label>
+                                    <div>{{game.intro}}</div>
+                                </li>
+                            </ul>
+                        </header>
+                        <div class="screenshots">
+                            <template>
+                                <el-carousel :interval="4000" type="card" height="300px">
+                                    <el-carousel-item v-for="ss in url.screenshots" :key="ss.id">
+                                        <div class="imgdiv-del"><img :src="ss.img" /></div>
+                                    </el-carousel-item>
+                                </el-carousel>
+                            </template>
+                        </div>
+                        <div class="description">
+                            <pre>{{game.description}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </el-dialog>
+        </div>
+        <div class="installdialog">
+            <el-dialog :title="game.idUpper+'|'+game.name" :visible.sync="gameInstallVisible" width="90%">
+                <el-form ref="form" :model="installGame" label-width="80px">
+                    <el-form-item label="语言">
+                        <el-input v-model="game.languages" style="width:440px;" disabled></el-input>
+                    </el-form-item>
+                    <el-form-item label="本体">
+                        <el-checkbox-group v-model="installGame.basePath" v-if="game.basePath!=''">
+                            <el-checkbox :label="game.basePath" name="basePath" border></el-checkbox>
+                            <strong>大小：{{game.size | formatBytes}}</strong>
+                        </el-checkbox-group>
+                        <el-input placeholder="此游戏没有本体" :disabled="true" v-if="game.basePath==''" style="width:140px;"></el-input>
+                    </el-form-item>
+                    <el-form-item label="升级包">
+                        <el-checkbox-group v-model="installGame.updPath">
+                            <el-checkbox :label="game.updPath" name="updPath" v-if="game.updPath!=''" border></el-checkbox>
+                        </el-checkbox-group>
+                        <el-input placeholder="此游戏没有升级包" :disabled="true" v-if="game.updPath==''" style="width:145px;"></el-input>
+                    </el-form-item>
+                    <el-form-item label="DLCs">
+                        <el-checkbox :indeterminate="isIndeterminate" v-model="checkAllDlcs" @change="dlcsCheckAllChange" v-if="game.dlcsPath!=''" style="margin-left: 10px;">全选</el-checkbox>
+                        <el-checkbox-group v-model="installGame.dlcsPath" @change="dlcsCheckedChange">
+                            <div v-for="path in game.dlcsPath">
+                                <el-checkbox :label="path" :key="path" name="dlcsPath" border></el-checkbox>
+                            </div>
+                            <el-input placeholder="此游戏没有DLCs" :disabled="true" v-if="game.dlcsPath==''" style="width:140px;"></el-input>
+                        </el-checkbox-group>
+                    </el-form-item>
+                </el-form>
+                <div slot="footer" class="dialog-footer">
+                    <el-button @click="gameInstallVisible = false">取消</el-button>
+                    <el-button type="primary" @click="gameInstall" :disabled="insGameFlag">安装</el-button>
+                </div>
+            </el-dialog>
+        </div>
+        <div class="block" v-if="errorFlag" style="margin-top: 50px;">
+            <el-timeline>
+                <el-timeline-item timestamp="排查一" placement="top" type="danger" size="large">
+                    <el-card>
+                        <h4>检查Nut目录</h4>
+                        <p>请确认Nut目录已放在NSPView目录里，与core文件夹为平行文件夹</p>
+                    </el-card>
+                </el-timeline-item>
+                <el-timeline-item timestamp="排查二" placement="top" type="danger" size="large">
+                    <el-card>
+                        <h4>检查两个配置文件</h4>
+                        <p>检查是否存在：/上一层目录/nut/conf/nut.default.conf 和 config.json</p>
+                    </el-card>
+                </el-timeline-item>
+                <el-timeline-item timestamp="排查三" placement="top" type="danger" size="large">
+                    <el-card>
+                        <h4>重新下载NSPView和Nut</h4>
+                        <p>除了重下，还有什么办法呢~~~</p>
+                    </el-card>
+                </el-timeline-item>
+            </el-timeline>
+        </div>
+    </div>
+    <script>
+    require('./renderer.js')
+    </script>
+</body>
+
+</html>
