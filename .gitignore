@@ -1,4 +1,5 @@
 core/node_modules
 core/_dev_tool
+core/dist
 nut
 publish
