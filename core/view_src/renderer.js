@@ -51,7 +51,7 @@ async function readTranJson(path) {
         let t = await readFile(path)
         tran = eval('(' + t + ')') //JSON.parse(t)
     } catch (e) {
-    	console.log(e)
+        console.log(e)
     }
     // return tran
 }
@@ -270,7 +270,7 @@ async function scanDirNut() {
 
 async function startFtp(path = data.pathScan) {
     data.ftpFlag = true
-    setTimeout(function() { showLog(newDate(), "info", "已启动ftp服务，关闭黑色框即可停止服务。") }, 100)    
+    setTimeout(function() { showLog(newDate(), "info", "已启动ftp服务，关闭黑色框即可停止服务。") }, 100)
     setTimeout(function() { showLog(newDate(), "warning", "SXInstaller和Tinfoil管理器不支持ftp里的子目录，除非将子目录作为FTP文件夹才可以。") }, 500)
     let out = await execWithPython(CMD_FTP, false, true, path)
     showLog(newDate(), "info", "ftp服务已关闭。")
@@ -426,6 +426,7 @@ let data = {
     pathScan: PATH_SCAN,
     total: 0, //默认数据总数
     pagesize: 10, //每页的数据条数
+    pagesizes: [10, 20, 30, 40, 50],
     currentPage: 1, //默认开始页面
     tooltip: {
         reload: "扫描游戏",
@@ -450,7 +451,10 @@ let data = {
         { value: '2', label: 'Demo' },
     ],
     filterValue: [],
-    filter: {}
+    filter: {},
+    windowHeight: 800,
+    windowWidth: 1280,
+    timer: null,
 }
 
 let vm = new Vue({
@@ -462,6 +466,10 @@ let vm = new Vue({
             this.tab = "games"
             this.activeName = "games"
         }
+        this.windowResize()
+    },
+    mounted() {
+        window.addEventListener('resize', this.windowResize);
     },
     computed: {
         filteredGames() {
@@ -491,6 +499,38 @@ let vm = new Vue({
         }
     },
     watch: {
+        showGamesAsTable(val) {
+            if (val) {
+                this.pagesize = parseInt((this.windowHeight - 229) / 52)
+            } else {
+                this.pagesize = parseInt((this.windowWidth - 152) / 270) * parseInt((this.windowHeight - 195) / 270)
+            }
+            var pagesizes_tmp = []
+            for (var i = 0; i < 4; i++) {
+                pagesizes_tmp.push((i + 1) * 10)
+                if ((i + 1) * 10 < this.pagesize && this.pagesize < (i + 2) * 10) {
+                    pagesizes_tmp.push(this.pagesize)
+                }
+            }
+            this.pagesizes = pagesizes_tmp
+        },
+        windowHeight(val) {
+            setTimeout(() => {
+                if (this.showGamesAsTable) {
+                    this.pagesize = parseInt((val - 229) / 52)
+                } else {
+                    this.pagesize = parseInt((this.windowWidth - 152) / 270) * parseInt((val - 195) / 270)
+                }
+                var pagesizes_tmp = []
+                for (var i = 0; i < 4; i++) {
+                    pagesizes_tmp.push((i + 1) * 10)
+                    if ((i + 1) * 10 < this.pagesize && this.pagesize < (i + 2) * 10) {
+                        pagesizes_tmp.push(this.pagesize)
+                    }
+                }
+                this.pagesizes = pagesizes_tmp
+            }, 300);
+        },
         filterValue(val) {
             var filter_tmp = {}
             val.forEach(function(e, i) {
@@ -514,6 +554,13 @@ let vm = new Vue({
         }
     },
     methods: {
+        windowResize() {
+            if (this.timer) clearTimeout(this.timer);
+            this.timer = setTimeout(() => { // 只执行最后一个定时器的 结果
+                this.windowHeight = window.innerHeight
+                this.windowWidth = window.innerWidth
+            }, 300); // 推迟 300 ms 在执行resize 效果 
+        },
         scanDirNut() {
             scanDirNut()
         },
@@ -656,5 +703,8 @@ let vm = new Vue({
         saveJsonFile(region) {
             saveJsonFile(region)
         }
+    },
+    beforeDestroy() {
+        window.removeEventListener("resize", this.windowResize); // 通过有名函数 解除事件订阅
     }
 })

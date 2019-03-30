@@ -69,7 +69,7 @@
                         <transition name="slide-fade">
                             <div v-show="showGamesAsTable">
                                 <template>
-                                    <el-table v-loading="loading" :default-sort="{prop: 'status', order: 'ascending'}" @sort-change="sortChange" :data="shownGames" :row-class-name="tableRowClassName" ref="gamesTable" height="600" style="width: 100%">
+                                    <el-table v-loading="loading" :default-sort="{prop: 'status', order: 'ascending'}" @sort-change="sortChange" :data="shownGames" :row-class-name="tableRowClassName" ref="gamesTable" :height="windowHeight-170" style="width: 100%;transition: height 0.5s;">
                                         <el-table-column sortable="custom" :sort-orders="['ascending', 'descending']" align="center" prop="status" label="状态" width=80>
                                             <template slot-scope="scope">
                                                 <span v-if="scope.row.status=='Current'" v-html="octicons['check'].toSVG({'width':18})"></span>
@@ -102,14 +102,14 @@
                                         </el-table-column>
                                     </el-table>
                                 </template>
-                                <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="[10, 20, 30, 40]" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
+                                <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="pagesizes" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
                                 </el-pagination>
                             </div>
                         </transition>
                         <transition name="slide-fade">
                             <div v-show="!showGamesAsTable" class="game-grid-row">
-                                <el-row>
-                                    <el-col :span="3">
+                                <el-container>
+                                    <el-aside width="150px">
                                         <el-menu :default-active="nowSort.prop" @select="sortChangeGrid" class="el-menu-vertical">
                                             <el-menu-item index="status">
                                                 <i :class="nowSort.prop=='status'?nowSort.order=='ascending'?'el-icon-caret-top':'el-icon-caret-bottom':'el-icon-minus'"></i>
@@ -128,9 +128,9 @@
                                                 <span slot="title">发布日期</span>
                                             </el-menu-item>
                                         </el-menu>
-                                    </el-col>
-                                    <el-col :span="21">
-                                        <div class="game-grid">
+                                    </el-aside>
+                                    <el-main style="padding:0;">
+                                        <div class="game-grid" :style="'height:'+(windowHeight-195)+'px;transition: height 1s;'">
                                             <div v-for="game in shownGames" class="game-grid-box" :class="game.status">
                                                 <div class="game-grid-box-image" :style="`background-image: url('${imagesFolder}/${game.idUpper}/icon.jpg'),url('assets/blank.jpg')`" @click="showGameInfo(game)">
                                                     <div class="game-players game-grid-box-hidable" v-if="game.numberOfPlayers > 0">
@@ -138,7 +138,7 @@
                                                     </div>
                                                     <div class="game-name game-grid-box-hidable" @click="showGameInfo(game)">
                                                         <span>
-                                                            {{game.name}}<span v-if="game.region"> ({{game.region}})</span>
+                                                            {{gameNameFlag?game.cn_name:game.name}}<span v-if="game.region"> ({{game.region}})</span>
                                                         </span>
                                                     </div>
                                                     <div class="game-upddlcs game-grid-box-hidable" @click="showGameInfo(game)">
@@ -159,13 +159,13 @@
                                             </div>
                                         </div>
                                         <div class="line"></div>
-                                    </el-col>
-                                </el-row>
-                                <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="[10, 20, 30, 40]" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
-                                </el-pagination>
+                                        <el-pagination style="margin-top: 15px;text-align: center" @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="pagesizes" :page-size="pagesize" layout="total, sizes, prev, pager, next, jumper" :total="total" background>
+                                        </el-pagination>
+                                </el-container>
+                                </el-container>
                             </div>
                         </transition>
-                        <div v-if="!showGamesAsTable" style="height:612px">
+                        <div v-if="!showGamesAsTable" :style="'height:'+(windowHeight-123)+'px;'">
                         </div>
                     </div>
                 </transition>

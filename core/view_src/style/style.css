@@ -58,7 +58,6 @@ html{
     flex-wrap: wrap;
     justify-content: center;
     align-content: flex-start;
-    height: 540px;
     overflow-y: auto;
 }
 
