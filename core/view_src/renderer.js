@@ -50,7 +50,9 @@ async function readTranJson(path) {
     try {
         let t = await readFile(path)
         tran = eval('(' + t + ')') //JSON.parse(t)
-    } catch (e) {}
+    } catch (e) {
+    	console.log(e)
+    }
     // return tran
 }
 
@@ -58,7 +60,7 @@ async function loadTitlesNutList() {
     let gamesByID = {}
     let haveBaseCount = 0
 
-    await readTranJson("./view_src/tran_title.json") //读取标题翻译文件
+    await readTranJson("tran_title.json") //读取标题翻译文件
     try {
         let gamesData = await readFile(PATH_ALL_GAMES)
         gamesJson = JSON.parse(gamesData)

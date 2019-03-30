@@ -13,7 +13,9 @@ try {
   ERROR_FLAG = true
 }
 
-const PATH_CONFIG_NUT = '../nut/conf/nut.default.conf'
+const NUT_FOLDER = config.NUT_FOLDER || process.cwd()
+
+const PATH_CONFIG_NUT = NUT_FOLDER + '/conf/nut.default.conf'
 let config_nut = null
 let PATH_SCAN = ""
 try {
@@ -25,8 +27,6 @@ try {
   alert(`无法读取: ${PATH_CONFIG_NUT}，请确认nut目录是否存在。`, "错误")
   ERROR_FLAG = true
 }
-
-const NUT_FOLDER = config.NUT_FOLDER || process.cwd()
 
 module.exports = {
   ERROR_FLAG,

@@ -24,9 +24,7 @@ function createWindow() {
     mainWindow.maximize()
   }
   mainWindow.loadFile('view_src/index.html')
-  mainWindow.on('closed', function() {
-    mainWindow = null
-  })
+  
 }
 
 app.on('ready', createWindow)
